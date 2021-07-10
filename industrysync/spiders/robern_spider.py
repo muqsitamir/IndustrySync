@@ -72,7 +72,7 @@ class RobernParseSpider(Mixin, CrawlSpider):
             image_element = response.css(image_css).get()
             meta = {
                 'combo': payload.copy(),
-                'decorative-image': image_element.split(',')[0] if image_element else ''
+                'decorative-image': ';'.join(image_element.split(',')) if image_element else ''
             }
             url = add_or_replace_parameters(self.product_url, payload)
             sku_requests.append(Request(url, self.parse_skus, headers=self.headers, meta=meta))
@@ -80,10 +80,10 @@ class RobernParseSpider(Mixin, CrawlSpider):
         return sku_requests
 
     def item_or_next_requests(self, item):
-        if not item.get('next_requests'):
-            return item
-
         requests = item.pop('next_requests')
+
+        if not requests:
+            return item
 
         for request in requests:
             request.meta['item'] = item.copy()
