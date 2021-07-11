@@ -22,6 +22,7 @@ class Mixin:
 class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
     name = Mixin.provider + '_parse'
     namespaces = [('xmlns', 'http://schemas.datacontract.org/2004/07/Robern.ViewModels.Api.Product')]
+    parameters =set()
 
     def parse(self, response, **kwargs):
         raw_product = json.loads(response.css('[data-product-model]::attr(data-product-model)').get())
@@ -43,10 +44,10 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
         item['upgrade-options'] = url_query_parameter(response.url, 'ELECTRIC_PACKAGE')
         item['decorative-options'] = url_query_parameter(response.url, 'COLOR_FINISH_NAME')
         item['decorative-options-image'] = response.meta.get('decorative-image', '')
-
-        for k, v in parse_qs(urlparse.urlparse(response.url).query).items():
-            if k not in ['Style', 'DefaultSku', 'SIZE', 'ELECTRIC_PACKAGE', 'COLOR_FINISH_NAME']:
-                item[k.lower().replace('_', '-')] = url_query_parameter(response.url, k)
+        item['color-temperature'] = url_query_parameter(response.url, 'COLOR_TEMPERATURE')
+        item['hinge-side'] = url_query_parameter(response.url, 'HINGE_SIDE')
+        item['edge-type'] = url_query_parameter(response.url, 'EDGE_TYPE')
+        item['audio'] = url_query_parameter(response.url, 'AUDIO')
 
         if isinstance(response, XmlResponse):
             self.parse_xml_sku(response, item)
@@ -138,7 +139,7 @@ class RobernCrawlSpider(Mixin, CrawlSpider):
     product_css = ['.feature-ft']
 
     custom_settings = {
-        'CRAWLERA_ENABLED': True,
+        'CRAWLERA_ENABLED': False,
         'CRAWLERA_USER': '217db34c0e52472e9bb3fb50cefe3a84',
         'CRAWLERA_APIKEY': '217db34c0e52472e9bb3fb50cefe3a84'
     }
