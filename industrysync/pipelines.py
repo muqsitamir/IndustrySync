@@ -13,4 +13,4 @@ class IndustrysyncPipeline:
     def process_item(self, item, spider):
         if item['model-number']:
             return item
-        raise DropItem('Dropping item because ')
+        raise DropItem('Dropping out of stock item as it has no "model-number" and "list-price"')

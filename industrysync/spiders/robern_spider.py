@@ -1,11 +1,12 @@
 import itertools
 import json
-
+from urllib.parse import parse_qs
+import urllib.parse as urlparse
 from scrapy import Request, Selector
 from scrapy.http import XmlResponse
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule, XMLFeedSpider
-from w3lib.url import add_or_replace_parameters
+from w3lib.url import add_or_replace_parameters, url_query_parameter
 
 
 class Mixin:
@@ -38,6 +39,15 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
     def parse_skus(self, response):
         item = response.meta['item']
 
+        item['size'] = url_query_parameter(response.url, 'SIZE')
+        item['upgrade-options'] = url_query_parameter(response.url, 'ELECTRIC_PACKAGE')
+        item['decorative-options'] = url_query_parameter(response.url, 'COLOR_FINISH_NAME')
+        item['decorative-options-image'] = response.meta.get('decorative-image', '')
+
+        for k, v in parse_qs(urlparse.urlparse(response.url).query).items():
+            if k not in ['Style', 'DefaultSku', 'SIZE', 'ELECTRIC_PACKAGE', 'COLOR_FINISH_NAME']:
+                item[k.lower().replace('_', '-')] = url_query_parameter(response.url, k)
+
         if isinstance(response, XmlResponse):
             self.parse_xml_sku(response, item)
         else:
@@ -51,32 +61,24 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
 
         item['model-number'] = selector.xpath('xmlns:Sku/text()').get()
         item['list-price'] = int(selector.xpath('xmlns:PriceNumeric/text()').get())
-        item['size'] = response.meta['combo']['SIZE']
-        item['upgrade-options'] = response.meta['combo'].get("ELECTRIC_PACKAGE", '')
-        item['decorative-options'] = response.meta['combo'].get("COLOR_FINISH_NAME", '')
-        item['decorative-options-image'] = response.meta['decorative-image']
         item['installation-guide'] = selector.xpath('xmlns:InstallationDocumentation//text()').get() or ''
         item['spec-sheet'] = selector.xpath('xmlns:SpecsDocumentation//text()').get() or ''
-
-        return item
 
     def parse_json_sku(self, response, item):
         raw_sku = json.loads(response.body)
 
         item['model-number'] = raw_sku['Sku']
         item['list-price'] = int(raw_sku['PriceNumeric'])
-        item['size'] = response.meta['combo']['SIZE']
-        item['upgrade-options'] = response.meta['combo'].get("ELECTRIC_PACKAGE", '')
-        item['decorative-options'] = response.meta['combo'].get("COLOR_FINISH_NAME", '')
-        item['decorative-options-image'] = response.meta.get('decorative-image', '')
         item['installation-guide'] = (raw_sku['InstallationDocumentation'] or [''])[0]
         item['spec-sheet'] = (raw_sku['SpecsDocumentation'] or [''])[0]
 
     def sku_requests(self, response):
         sku_requests = []
-        combinations = {
-            'SIZE': response.css('#SIZE ::attr(value)').getall(),
-        }
+        combinations = {}
+
+        sizes = response.css('#SIZE ::attr(value)').getall()
+        if sizes:
+            combinations['SIZE'] = sizes
 
         for panel in set(response.css('.collapsible-panel input::attr(name)').getall()):
             combinations[panel] = response.css(f'[name={panel}] ::attr(value)').getall()
@@ -97,7 +99,6 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
             image_css = f'[name="COLOR_FINISH_NAME"][value="{payload.get("COLOR_FINISH_NAME")}"] + span img::attr(srcset)'
             image_element = response.css(image_css).get()
             meta = {
-                'combo': payload.copy(),
                 'decorative-image': ';'.join(image_element.split(',')) if image_element else ''
             }
             url = add_or_replace_parameters(self.product_url, payload)
