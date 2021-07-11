@@ -1,9 +1,10 @@
 import itertools
 import json
 
-from scrapy import Request
+from scrapy import Request, Selector
+from scrapy.http import XmlResponse
 from scrapy.linkextractors import LinkExtractor
-from scrapy.spiders import CrawlSpider, Rule
+from scrapy.spiders import CrawlSpider, Rule, XMLFeedSpider
 from w3lib.url import add_or_replace_parameters
 
 
@@ -13,15 +14,15 @@ class Mixin:
     start_urls = ['https://robern.com/']
     product_url = 'https://robern.com/umbraco/Api/ProductApi/GetProductInfo'
     headers = {
-        'Accept': 'application/json'
+        'Accept': 'application/json; charset=utf-8'
     }
 
 
-class RobernParseSpider(Mixin, CrawlSpider):
+class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
     name = Mixin.provider + '_parse'
+    namespaces = [('xmlns', 'http://schemas.datacontract.org/2004/07/Robern.ViewModels.Api.Product')]
 
     def parse(self, response, **kwargs):
-
         item = {
             'images': ';'.join(set(response.css('[data-big2x]::attr(data-big2x)').getall())),
             'accessories-and-kits': '',
@@ -33,8 +34,32 @@ class RobernParseSpider(Mixin, CrawlSpider):
         return self.item_or_next_requests(item)
 
     def parse_skus(self, response):
-        raw_sku = json.loads(response.body)
         item = response.meta['item']
+
+        if isinstance(response, XmlResponse):
+            self.parse_xml_sku(response, item)
+        else:
+            self.parse_json_sku(response, item)
+
+        return item
+
+    def parse_xml_sku(self, response, item):
+        selector = Selector(response, type='xml')
+        self._register_namespaces(selector)
+
+        item['model-number'] = selector.xpath('xmlns:ImageUrl/text()').get()
+        item['list-price'] = int(selector.xpath('xmlns:PriceNumeric/text()').get())
+        item['size'] = response.meta['combo']['SIZE']
+        item['upgrade-options'] = response.meta['combo'].get("ELECTRIC_PACKAGE", '')
+        item['decorative-options'] = response.meta['combo'].get("COLOR_FINISH_NAME", '')
+        item['decorative-options-image'] = response.meta['decorative-image']
+        item['installation-guide'] = selector.xpath('xmlns:InstallationDocumentation//text()').get() or ''
+        item['spec-sheet'] = selector.xpath('xmlns:SpecsDocumentation//text()').get() or ''
+
+        return item
+
+    def parse_json_sku(self, response, item):
+        raw_sku = json.loads(response.body)
 
         item['model-number'] = raw_sku['Sku']
         item['list-price'] = int(raw_sku['PriceNumeric'])
@@ -42,10 +67,8 @@ class RobernParseSpider(Mixin, CrawlSpider):
         item['upgrade-options'] = response.meta['combo'].get("ELECTRIC_PACKAGE", '')
         item['decorative-options'] = response.meta['combo'].get("COLOR_FINISH_NAME", '')
         item['decorative-options-image'] = response.meta['decorative-image']
-        item['installation-guide'] = raw_sku['InstallationDocumentation'][0] if raw_sku['InstallationDocumentation'] else ''
-        item['spec-sheet'] = raw_sku['SpecsDocumentation'][0] if raw_sku['SpecsDocumentation'] else ''
-
-        return item
+        item['installation-guide'] = (raw_sku['InstallationDocumentation'] or [''])[0]
+        item['spec-sheet'] = (raw_sku['SpecsDocumentation'] or [''])[0]
 
     def sku_requests(self, response):
         sku_requests = []
