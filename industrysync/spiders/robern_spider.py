@@ -23,14 +23,16 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
     namespaces = [('xmlns', 'http://schemas.datacontract.org/2004/07/Robern.ViewModels.Api.Product')]
 
     def parse(self, response, **kwargs):
+        raw_product = json.loads(response.css('[data-product-model]::attr(data-product-model)').get())
         item = {
             'images': ';'.join(set(response.css('[data-big2x]::attr(data-big2x)').getall())),
-            'accessories-and-kits': '',
+            'accessories-and-kits': ';'.join(self.parse_accessories(response, raw_product)),
             'technical-documents-installation-instructions': ';'.join(response.css('[data-filter-value="(Show Installation Instructions)|^$"] ::attr(href)').getall()),
             'technical-documents-specifications': ';'.join(response.css('[data-filter-value="(Show Specifications)|^$"] ::attr(href)').getall()),
             'technical-documents-cad-files': ';'.join(response.css('[data-filter-value="(Show CAD Files)|^$"] ::attr(href)').getall()),
             'next_requests': self.sku_requests(response)
         }
+
         return self.item_or_next_requests(item)
 
     def parse_skus(self, response):
@@ -66,7 +68,7 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
         item['size'] = response.meta['combo']['SIZE']
         item['upgrade-options'] = response.meta['combo'].get("ELECTRIC_PACKAGE", '')
         item['decorative-options'] = response.meta['combo'].get("COLOR_FINISH_NAME", '')
-        item['decorative-options-image'] = response.meta['decorative-image']
+        item['decorative-options-image'] = response.meta.get('decorative-image', '')
         item['installation-guide'] = (raw_sku['InstallationDocumentation'] or [''])[0]
         item['spec-sheet'] = (raw_sku['SpecsDocumentation'] or [''])[0]
 
@@ -80,6 +82,7 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
             combinations[panel] = response.css(f'[name={panel}] ::attr(value)').getall()
 
         parameters = combinations.keys()
+
         payload = {
             'Style': response.css(f'[name="Style"] ::attr(value)').get(),
             'DefaultSku': response.css(f'[name="DefaultSku"] ::attr(value)').get(),
@@ -100,7 +103,17 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
             url = add_or_replace_parameters(self.product_url, payload)
             sku_requests.append(Request(url, self.parse_skus, headers=self.headers, meta=meta))
 
-        return sku_requests
+        if sku_requests:
+            return sku_requests
+
+        meta = {
+            'combo': {
+                'SIZE': response.css('li:contains("Size:") ::text').getall()[-1].strip(),
+                'COLOR_FINISH_NAME':  response.css('[itemprop="additionalProperty"]::text').get()
+            },
+        }
+        url = add_or_replace_parameters(self.product_url, payload)
+        return [Request(url, self.parse_skus, headers=self.headers, meta=meta)]
 
     def item_or_next_requests(self, item):
         requests = item.pop('next_requests')
@@ -113,12 +126,21 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
 
         return requests
 
+    def parse_accessories(self, response, raw_product):
+        return [response.urljoin(accessory['Url']) for accessory in raw_product['Accessories']]
+
 
 class RobernCrawlSpider(Mixin, CrawlSpider):
     name = Mixin.provider + '_crawl'
     parse_spider = RobernParseSpider()
     listing_css = ['.primaryNav-link:contains("Products ") + .primaryNav-submenu .feature']
     product_css = ['.feature-ft']
+
+    custom_settings = {
+        'CRAWLERA_ENABLED': True,
+        'CRAWLERA_USER': '217db34c0e52472e9bb3fb50cefe3a84',
+        'CRAWLERA_APIKEY': '217db34c0e52472e9bb3fb50cefe3a84'
+    }
 
     rules = (
         Rule(LinkExtractor(restrict_css=listing_css)),
