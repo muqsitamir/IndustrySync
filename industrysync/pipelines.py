@@ -6,8 +6,11 @@
 
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
+from scrapy.exceptions import DropItem
 
 
 class IndustrysyncPipeline:
     def process_item(self, item, spider):
-        return item
+        if item['model-number']:
+            return item
+        raise DropItem('Dropping item because ')

@@ -49,7 +49,7 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
         selector = Selector(response, type='xml')
         self._register_namespaces(selector)
 
-        item['model-number'] = selector.xpath('xmlns:ImageUrl/text()').get()
+        item['model-number'] = selector.xpath('xmlns:Sku/text()').get()
         item['list-price'] = int(selector.xpath('xmlns:PriceNumeric/text()').get())
         item['size'] = response.meta['combo']['SIZE']
         item['upgrade-options'] = response.meta['combo'].get("ELECTRIC_PACKAGE", '')
