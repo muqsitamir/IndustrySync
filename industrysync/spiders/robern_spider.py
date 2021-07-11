@@ -139,7 +139,7 @@ class RobernCrawlSpider(Mixin, CrawlSpider):
     product_css = ['.feature-ft']
 
     custom_settings = {
-        'CRAWLERA_ENABLED': False,
+        'CRAWLERA_ENABLED': True,
         'CRAWLERA_USER': '217db34c0e52472e9bb3fb50cefe3a84',
         'CRAWLERA_APIKEY': '217db34c0e52472e9bb3fb50cefe3a84'
     }
