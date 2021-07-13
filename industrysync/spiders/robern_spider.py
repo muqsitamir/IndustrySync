@@ -1,7 +1,6 @@
 import itertools
 import json
-from urllib.parse import parse_qs
-import urllib.parse as urlparse
+
 from scrapy import Request, Selector
 from scrapy.http import XmlResponse
 from scrapy.linkextractors import LinkExtractor
@@ -19,10 +18,16 @@ class Mixin:
     }
 
 
-class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
-    name = Mixin.provider + '_parse'
+class RobernCrawlSpider(Mixin, CrawlSpider, XMLFeedSpider,):
+    name = Mixin.provider + '_crawl'
     namespaces = [('xmlns', 'http://schemas.datacontract.org/2004/07/Robern.ViewModels.Api.Product')]
-    parameters =set()
+    listing_css = ['.primaryNav-link:contains("Products ") + .primaryNav-submenu .feature']
+    product_css = ['.feature-ft']
+
+    rules = (
+        Rule(LinkExtractor(restrict_css=listing_css)),
+        Rule(LinkExtractor(restrict_css=product_css), callback='parse'),
+    )
 
     def parse(self, response, **kwargs):
         raw_product = json.loads(response.css('[data-product-model]::attr(data-product-model)').get())
@@ -130,24 +135,3 @@ class RobernParseSpider(Mixin, XMLFeedSpider, CrawlSpider):
 
     def parse_accessories(self, response, raw_product):
         return [response.urljoin(accessory['Url']) for accessory in raw_product['Accessories']]
-
-
-class RobernCrawlSpider(Mixin, CrawlSpider):
-    name = Mixin.provider + '_crawl'
-    parse_spider = RobernParseSpider()
-    listing_css = ['.primaryNav-link:contains("Products ") + .primaryNav-submenu .feature']
-    product_css = ['.feature-ft']
-
-    custom_settings = {
-        'CRAWLERA_ENABLED': True,
-        'CRAWLERA_USER': '217db34c0e52472e9bb3fb50cefe3a84',
-        'CRAWLERA_APIKEY': '217db34c0e52472e9bb3fb50cefe3a84'
-    }
-
-    rules = (
-        Rule(LinkExtractor(restrict_css=listing_css)),
-        Rule(LinkExtractor(restrict_css=product_css), callback='parse_item'),
-    )
-
-    def parse_item(self, response, **kwargs):
-        return self.parse_spider.parse(response)

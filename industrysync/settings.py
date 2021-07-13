@@ -15,10 +15,14 @@ NEWSPIDER_MODULE = 'industrysync.spiders'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'industrysync (+http://www.yourdomain.com)'
+USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
 
+CRAWLERA_ENABLED = True
+CRAWLERA_USER = '217db34c0e52472e9bb3fb50cefe3a84',
+CRAWLERA_APIKEY = '217db34c0e52472e9bb3fb50cefe3a84'
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
 
