@@ -11,10 +11,7 @@ from scrapy.exceptions import DropItem
 
 class IndustrysyncPipeline:
     def process_item(self, item, spider):
-        if spider.name == 'elk_crawl':
-            return item
-
-        if item['model-number']:
+        if spider.name != 'robern_crawl' or item['model-number']:
             return item
 
         raise DropItem('Dropping out of stock item as it has no "model-number" and "list-price"')
