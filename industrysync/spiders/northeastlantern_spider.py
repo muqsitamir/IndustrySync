@@ -19,6 +19,7 @@ class NortheastlanternSpider(CrawlSpider):
         spec_sheet = response.css('.spec-sheet::attr(href)').get()
         css = '.productdetails :contains("{}")::text'
         item = {
+            'url': response.url,
             'product-code': f'{response.css(".ProductCode::Text").get()[:-1]}',
             'title': response.css('.productseperator h2::text').get(),
             'images': ';'.join([response.urljoin(url) for url in response.css('.sidethumbs li img::attr(src)').getall()]),

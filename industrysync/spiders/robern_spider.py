@@ -32,6 +32,7 @@ class RobernCrawlSpider(Mixin, CrawlSpider, XMLFeedSpider,):
     def parse(self, response, **kwargs):
         raw_product = json.loads(response.css('[data-product-model]::attr(data-product-model)').get())
         item = {
+            'url': response.url,
             'images': ';'.join(set(response.css('[data-big2x]::attr(data-big2x)').getall())),
             'accessories-and-kits': ';'.join(self.parse_accessories(response, raw_product)),
             'technical-documents-installation-instructions': ';'.join(response.css('[data-filter-value="(Show Installation Instructions)|^$"] ::attr(href)').getall()),
