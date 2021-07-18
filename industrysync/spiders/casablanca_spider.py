@@ -16,6 +16,10 @@ class CasablancaCrawlSpider(CrawlSpider):
         Rule(LinkExtractor(restrict_css='a.grid-view-item__title'), callback='parse_item'),
     )
 
+    custom_settings = {
+        'CRAWLERA_ENABLED': False
+    }
+
     def parse_item(self, response):
         item = {
             'title': response.css('h1.product-single__title.desktop_only::text').get(),
