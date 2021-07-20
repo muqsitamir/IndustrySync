@@ -10,6 +10,7 @@ class CasablancaCrawlSpider(CrawlSpider):
     start_urls = ['https://www.hunterfan.com/collections/ceiling-fans']
     imageset_url_t = 'https://s7d5.scene7.com/is/image/{}?req=set,json,UTF-8'
     image_url_t = 'https://s7d5.scene7.com/is/image/{}?fit=constrain,1&wid={}&hei={}&fmt=jpg'
+    video_url_t = 'https://s7d5.scene7.com/is/content/{}'
 
     rules = (
         Rule(LinkExtractor(restrict_css='div.infinitpagin a')),
@@ -25,8 +26,8 @@ class CasablancaCrawlSpider(CrawlSpider):
             'title': response.css('h1.product-single__title.desktop_only::text').get(),
             'price': response.css('#ProductPrice-product-template ::text').get(),
             'finish': '',
-            'sku': '',
             'images': '',
+            'sku': '',
             'url': response.url,
             'overview': '\n'.join([s for s in response.css('.product-description .overview ::text').getall() if s != '\n']),
             'specsheet-image': response.css('.specs-diagram img::attr(data-src)').get(),
@@ -46,8 +47,17 @@ class CasablancaCrawlSpider(CrawlSpider):
     def parse_images(self, response):
         item = response.meta['item']
         raw_images = response.text.replace('/*jsonp*/s7jsonResponse(', '').replace(',"");', '')
+        content = []
 
-        item['images'] = ';'.join([self.image_url_t.format(raw_img['i']['n'], raw_img['dx'], raw_img['dy'])
-                                   for raw_img in json.loads(raw_images)['set']['item'] if 'type' not in raw_img])
+        for raw_content in json.loads(raw_images)['set']['item']:
+            if 'type' not in raw_content:
+                content.append(self.image_url_t.format(raw_content['i']['n'], raw_content['dx'], raw_content['dy']))
+            elif raw_content['type'] == 'video':
+                content.append(self.video_url_t.format(raw_content['v']['path']))
+            elif raw_content['type'] == 'video_set':
+                res = [int(v['v']['dx'])*int(v['v']['dy']) for v in raw_content['set']['item']]
+                max_res_index = res.index(max(res))
+                content.append(self.video_url_t.format(raw_content['set']['item'][max_res_index]['v']['path']))
 
+        item['images'] = ';'.join(content)
         yield item
