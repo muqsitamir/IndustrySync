@@ -7,14 +7,19 @@ from scrapy.linkextractors import LinkExtractor
 class CasablancaCrawlSpider(CrawlSpider):
     name = 'casablanca_crawl'
     allowed_domains = ['hunterfan.com', 's7d5.scene7.com']
-    start_urls = ['https://www.hunterfan.com/collections/ceiling-fans']
+    start_urls = [
+        'https://www.hunterfan.com/',
+        'https://www.hunterfan.com/pages/casablanca'
+    ]
+
     imageset_url_t = 'https://s7d5.scene7.com/is/image/{}?req=set,json,UTF-8'
     image_url_t = 'https://s7d5.scene7.com/is/image/{}?fit=constrain,1&wid={}&hei={}&fmt=jpg'
     video_url_t = 'https://s7d5.scene7.com/is/content/{}'
 
+    listing_css = ['.site-nav.lvl-2:contains(" All")', '.site-nav.lvl-1:contains(" all")', '.Grid', '.infinitpagin']
     rules = (
-        Rule(LinkExtractor(restrict_css='div.infinitpagin a')),
-        Rule(LinkExtractor(restrict_css='a.grid-view-item__title'), callback='parse_item'),
+        Rule(LinkExtractor(restrict_css=listing_css)),
+        Rule(LinkExtractor(restrict_css='.grid-view-item__title'), callback='parse_item'),
     )
 
     custom_settings = {
@@ -48,8 +53,13 @@ class CasablancaCrawlSpider(CrawlSpider):
         item = response.meta['item']
         raw_images = response.text.replace('/*jsonp*/s7jsonResponse(', '').replace(',"");', '')
         content = []
+        raw_images = json.loads(raw_images)['set']['item']
 
-        for raw_content in json.loads(raw_images)['set']['item']:
+        if isinstance(raw_images, dict):
+            item['images'] = self.image_url_t.format(raw_images['i']['n'], raw_images['dx'], raw_images['dy'])
+            return item
+
+        for raw_content in raw_images:
             if 'type' not in raw_content:
                 content.append(self.image_url_t.format(raw_content['i']['n'], raw_content['dx'], raw_content['dy']))
             elif raw_content['type'] == 'video':
@@ -60,4 +70,4 @@ class CasablancaCrawlSpider(CrawlSpider):
                 content.append(self.video_url_t.format(raw_content['set']['item'][max_res_index]['v']['path']))
 
         item['images'] = ';'.join(content)
-        yield item
+        return item
