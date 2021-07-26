@@ -1,6 +1,6 @@
 from scrapy import Request
-from scrapy.spiders import CrawlSpider, Rule
-from scrapy.linkextractors import LinkExtractor
+from scrapy.spiders import CrawlSpider
+
 
 class SchonbekSpider(CrawlSpider):
     name = 'schonbek'
@@ -9,13 +9,14 @@ class SchonbekSpider(CrawlSpider):
     custom_settings = {
         'CRAWLERA_ENABLED': False
     }
-    rules = (
-        Rule(LinkExtractor(restrict_css='a.product'), callback='parse_item')
-    )
 
     def parse_start_url(self, response, **kwargs):
         for category in response.css('ul.main-menu__inner-list[data-menu~=menu-908] li:nth-child(n+2) a::attr(href)').getall():
-            yield Request(url=category+"?&product_list_limit=all")
+            yield Request(category+"?&product_list_limit=all", callback=self.parse_category)
+
+    def parse_category(self, response):
+        for link in response.css('a.product::attr(href)').getall():
+            yield Request(link, callback=self.parse_item)
 
     def parse_item(self, response):
         product = {
