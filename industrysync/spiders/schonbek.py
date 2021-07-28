@@ -19,8 +19,14 @@ class SchonbekSpider(CrawlSpider):
 
     def parse_item(self, response):
         product = {
+            'url': response.url,
             'title': response.css('.product-name span::text').get().replace('\t', '').replace('\n', '').replace('\r', ''),
             'core-sku': response.css('.product-name h2::text').get(),
             'specsheet': response.css('.download-specs::attr(href)').get(),
+            'height': response.css('span[data-th=Height]::text').get(),
+            'length': response.css('span[data-th=Length]::text').get(),
+            'hang-weight': response.css('span[data-th~=Hang]::text').get(),
+            'room': response.css('span[data-th=Room]::text').get(),
+            'voltage': response.css('span[data-th=Voltage]::text').get()
         }
         yield product

@@ -40,7 +40,6 @@ class RobernCrawlSpider(Mixin, CrawlSpider, XMLFeedSpider,):
             'technical-documents-cad-files': ';'.join(response.css('[data-filter-value="(Show CAD Files)|^$"] ::attr(href)').getall()),
             'next_requests': self.sku_requests(response)
         }
-
         return self.item_or_next_requests(item)
 
     def parse_skus(self, response):
