@@ -6,7 +6,7 @@ from scrapy.linkextractors import LinkExtractor
 
 class CasablancaCrawlSpider(CrawlSpider):
     name = 'casablanca_crawl'
-    allowed_domains = ['hunterfan.com', 's7d5.scene7.com']
+    allowed_domains = ['hunterfan.com', 's7d5.scene7.com', 'edge.curalate.com']
     start_urls = [
         'https://www.hunterfan.com/',
         'https://www.hunterfan.com/pages/casablanca'
@@ -15,6 +15,8 @@ class CasablancaCrawlSpider(CrawlSpider):
     imageset_url_t = 'https://s7d5.scene7.com/is/image/{}?req=set,json,UTF-8'
     image_url_t = 'https://s7d5.scene7.com/is/image/{}?fit=constrain,1&wid={}&hei={}&fmt=jpg'
     video_url_t = 'https://s7d5.scene7.com/is/content/{}'
+    large_img_url = 'https://edge.curalate.com/v1/media/RBAUVdgCASbpxxGt?filter=((productId%3A%27{}%27))'
+
 
     listing_css = ['.site-nav.lvl-2:contains(" All")', '.site-nav.lvl-1:contains(" all")', '.Grid', '.infinitpagin']
     rules = (
@@ -33,6 +35,7 @@ class CasablancaCrawlSpider(CrawlSpider):
             'finish': '',
             'images': '',
             'sku': '',
+            'aux-image': '',
             'url': response.url,
             'overview': '\n'.join([s for s in response.css('.product-description .overview ::text').getall() if s != '\n']),
             'specsheet-image': response.css('.specs-diagram img::attr(data-src)').get(),
@@ -57,17 +60,23 @@ class CasablancaCrawlSpider(CrawlSpider):
 
         if isinstance(raw_images, dict):
             item['images'] = self.image_url_t.format(raw_images['i']['n'], raw_images['dx'], raw_images['dy'])
-            return item
+        else:
+            for raw_content in raw_images:
+                if 'type' not in raw_content:
+                    content.append(self.image_url_t.format(raw_content['i']['n'], raw_content['dx'], raw_content['dy']))
+                elif raw_content['type'] == 'video':
+                    content.append(self.video_url_t.format(raw_content['v']['path']))
+                elif raw_content['type'] == 'video_set':
+                    res = [int(v['v']['dx'])*int(v['v']['dy']) for v in raw_content['set']['item']]
+                    max_res_index = res.index(max(res))
+                    content.append(self.video_url_t.format(raw_content['set']['item'][max_res_index]['v']['path']))
 
-        for raw_content in raw_images:
-            if 'type' not in raw_content:
-                content.append(self.image_url_t.format(raw_content['i']['n'], raw_content['dx'], raw_content['dy']))
-            elif raw_content['type'] == 'video':
-                content.append(self.video_url_t.format(raw_content['v']['path']))
-            elif raw_content['type'] == 'video_set':
-                res = [int(v['v']['dx'])*int(v['v']['dy']) for v in raw_content['set']['item']]
-                max_res_index = res.index(max(res))
-                content.append(self.video_url_t.format(raw_content['set']['item'][max_res_index]['v']['path']))
+            item['images'] = ';'.join(content)
+        yield Request(self.large_img_url.format(item['sku']), callback=self.parse_result, meta={'item': item})
 
-        item['images'] = ';'.join(content)
-        return item
+    def parse_result(self, response):
+        item = response.meta['item']
+        raw_data = json.loads(response.text)
+        aux = [image['media']['extraLargeSquare']['link'] for image in raw_data['data']['items']]
+        item['aux-image'] = ';'.join(aux)
+        yield item
