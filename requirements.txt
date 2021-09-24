@@ -1,3 +1,5 @@
 Scrapy==2.5.0
 scrapy-zyte-smartproxy==2.1.0
 scrapy_crawlera==1.7.2
+selenium==3.141.0
+webdriver-manager==3.4.2
