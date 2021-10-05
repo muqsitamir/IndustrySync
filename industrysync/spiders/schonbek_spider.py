@@ -3,7 +3,7 @@ from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 
 class SchonbekSpider(CrawlSpider):
-    name = 'schonbek'
+    name = 'schonbek_spider'
     allowed_domains = ['schonbek.com']
     start_urls = ['https://www.schonbek.com/']
     custom_settings = {
