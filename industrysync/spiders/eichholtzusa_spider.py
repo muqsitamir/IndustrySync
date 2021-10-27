@@ -19,11 +19,28 @@ class EichholtzUSASpider(scrapy.Spider):
         'CRAWLERA_ENABLED': False
     }
 
-    def parse(self, response):
-        options = Options()
-        options.headless = True
+    def proxy_add(self):
+        f = open("proxies.txt", "r")
+        list_of_lines = f.readlines()
+        if not any(
+                "x " in s for s in list_of_lines):  # add locator to first item in file when running for first the time
+            list_of_lines[0] = "x " + list_of_lines[0]
+        for index, line in enumerate(list_of_lines):
+            if "x " in line:
+                next_index = index + 1
+                if index == len(list_of_lines) - 1:
+                    next_index = 0
+
+                list_of_lines[index] = list_of_lines[index].split("x ").pop()  # update current line
+                proxy = list_of_lines[index]
+                list_of_lines[next_index] = "x " + list_of_lines[next_index]  # update next line
+                return proxy
+
+    def start_requests(self):
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_argument(f'--proxy-server={self.proxy_add()}')
         MAX_LOAD_WAIT = 10
-        driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+        driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
         driver.get("https://eichholtzusa.com/")
         username = "jon.mcmahan@ktrlighting.com"
         password = "@Winner8248"

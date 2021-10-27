@@ -5,8 +5,6 @@ import scrapy
 
 from industrysync.utils import slugify
 
-# Todo: This spider is not writen by softcreed, should be refactored.
-
 
 class ElkSpider(scrapy.Spider):
     name = "elk_crawl"

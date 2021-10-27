@@ -1,9 +1,7 @@
 import re
-
 import scrapy
 import math
 from scrapy.spiders import CrawlSpider
-import json
 
 
 class EliteFixturesSpider(CrawlSpider):
