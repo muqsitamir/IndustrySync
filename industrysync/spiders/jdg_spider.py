@@ -5,16 +5,22 @@ from scrapy.linkextractors import LinkExtractor
 
 
 class JdgSpider(CrawlSpider):
-    name = 'jdg_spider'
+    name = 'jdg_crawl'
     allowed_domains = ['jdg.com']
     start_urls = ['https://www.jdg.com/']
     custom_settings = {
         'CRAWLERA_ENABLED': False
     }
-    rules = (
-        Rule(LinkExtractor(restrict_css=['.menu-item-1932', '.next.page-numbers'])),
-        Rule(LinkExtractor(restrict_css='.woocommerce-LoopProduct-link'), callback='parse_item'),
-    )
+
+    def parse_start_url(self, response, **kwargs):
+        yield response.follow(url=response.css('.menu-item-1932 > a::attr(href)').get(), callback=self.parse_all_products)
+
+    def parse_all_products(self, response):
+        for page in range(2, int(response.css('ul.page-numbers li:nth-last-child(-n+2) a::text').get()) + 1):
+            yield response.follow(url=response.url + "page/" + str(page), callback=self.parse_all_products)
+
+        for link in response.css('.woocommerce-LoopProduct-link::attr(href)').getall():
+            yield response.follow(url=link, callback=self.parse_item)
 
     def parse_item(self, response):
 
