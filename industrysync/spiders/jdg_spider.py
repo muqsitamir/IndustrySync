@@ -63,10 +63,12 @@ class JdgSpider(CrawlSpider):
                     x.re_first("'(.*)'") for x in
                     response.css('[aria-label="Metal Finish"] li::attr(style)')]
                 ),
+                'product-id': response.css('[data-original-product-id]::attr(data-product-id)').get(),
                 'cord-option': ';'.join([x.replace('150x150', '300x300') for x in response.css('ul[aria-label="Cord Option"] img::attr(src)').getall()]),
                 'ceramic-finish': {},
                 'lamping': ";".join(response.css('[aria-label=Lamping] li img::attr(alt)').getall()),
                 'images': ";".join(response.css('div.woocommerce-product-gallery img::attr(src)').getall()),
+                'finial-option': ';'.join(response.css('#pa_finial-option option:nth-of-type(n+2)::text').getall()),
                 'ies-file': '',
                 'ies-file-pdf': ''
             }
@@ -86,16 +88,29 @@ class JdgSpider(CrawlSpider):
                             ' ', '-').lower()] += '\n' + li
             for ele in response.css('div.main_attribute_group .shade-finish.group_sub_item'):
                 item['ceramic-finish'][ele.css('label::text').get().strip()] = ';'.join(ele.css('li > img::attr(src)').getall())
-            shade_finishes = [x.upper() for x in response.css('div.main_attribute_group .shade-finish.group_sub_item li::attr(data-value)').getall()]
-            metal_finishes = [x.upper() for x in response.css('[aria-label="Metal Finish"] li::attr(data-value)').getall()]
-            cord_options = [x.upper() for x in response.css('ul[aria-label="Cord Option"] li::attr(data-value)').getall()]
-            configured_fixture = response.css('.sku::text').get().strip()
+            shade_finishes = {}
+            for ele in response.css('div.main_attribute_group .shade-finish.group_sub_item'):
+                shade_finishes[ele.css('label::attr(for)').get()] = ele.css('li::attr(data-value)').getall()
+            metal_finishes = [x for x in response.css('[aria-label="Metal Finish"] li::attr(data-value)').getall()]
+            cord_options = [x for x in response.css('ul[aria-label="Cord Option"] li::attr(data-value)').getall()]
             for shade_finish in shade_finishes:
-                for metal_finish in metal_finishes:
-                    for cord_option in cord_options:
-                        sku = item.copy()
-                        sku['item'] = configured_fixture + '-' + shade_finish + '-' + metal_finish + '-' + cord_option
-                        yield sku
+                for shade in shade_finishes[shade_finish]:
+                    for metal_finish in metal_finishes:
+                        for cord_option in cord_options:
+                            sku = item.copy()
+                            yield Request(method="POST", url="https://www.jdg.com/?wc-ajax=get_variation", headers={'content-type': 'application/x-www-form-urlencoded; charset=UTF-8'}, body=f"attribute_pa_metal-finish={metal_finish}&attribute_{shade_finish}={shade}&product_id={item['product-id']}&attribute_pa_cord-option={cord_option}", meta={'item': sku}, callback=self.parse_skus)
+
+    def parse_skus(self, response):
+        raw_data = json.loads(response.text)
+        sku = response.meta['item']
+        sku['item'] = raw_data['sku']
+        sku['images'] += raw_data['image']['url']
+        yield Request(method='POST', url="https://www.jdg.com/wp-admin/admin-ajax.php", meta={'item': sku},
+                      headers={
+                          'content-type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                      },
+                      body=f"action=get_variation_alternate_images&variation_id={raw_data['variation_id']}&product_id={int(sku['product-id'])}",
+                      callback=self.yield_result)
 
     def yield_result(self, response):
         item = response.meta['item']
