@@ -26,41 +26,46 @@ class BusterAndPunchSpider(CrawlSpider):
         item = {
             'url': response.url,
             'title': response.css('.product_title::text').get(),
-            'price': int(response.css('.summary bdi::text').get()),
+            'price': int(response.css('.summary bdi::text').get().replace(',', '')),
             'description': '\n'.join(response.css('.product-description__content p::text').extract()),
             'images': ';'.join(response.css('#gallery a::attr(href)').extract()),
             'line-drawing': response.css('.technical_spec_image::attr(src)').get(),
             'included-in-the-box': ';'.join(response.css('#tab-included-in-the-box ::attr(src)').extract()),
             'finish': response.css('.iconic-was-swatch--selected::attr(data-finish)').get(),
             'finish-img-url': response.css('.iconic-was-swatch--selected img::attr(src)').get(),
+            'skus': [],
+            'next_requests': self.next_requests(response)
         }
 
         for bulb_s in response.css('#tab-which-bulbs li'):
-            sku = item.copy()
+            sku = dict()
             sku['sku'] = f'{product_id}_{bulb_s.css("::attr(data-clerk-product-id)").get()}'
-            sku['price'] += int(bulb_s.css('bdi::text').get())
-            sku['images'] += f';{bulb_s.css(" img::attr(src)").get()}'
-            sku['next_requests'] = self.next_requests(response)
-            yield self.item_or_next_requests(sku)
+            sku['price'] = item['price'] + int(bulb_s.css('bdi::text').get())
+            sku['images'] = item['images'] + f';{bulb_s.css(" img::attr(src)").get()}'
+            item['skus'].append(sku)
 
         yield from [Request(url=url, callback=self.parse_item)
                     for url in response.css('.iconic-was-swatches [data-finish]::attr(href)').extract()]
 
+        yield from self.item_or_next_requests(item)
+
     def parse_installation(self, response):
         item = response.meta['item']
         item['installation-video'] = json.loads(re.search('\"assets\"\:(\[.*?\])', response.text).group(1))[0]['url']
-        yield self.item_or_next_requests(item)
+        yield from self.item_or_next_requests(item)
 
     def parse_product_video(self, response):
         item = response.meta['item']
         item['product-video'] = json.loads(re.search('\"assets\"\:(\[.*?\])', response.text).group(1))[0]['url']
-        yield self.item_or_next_requests(item)
+        yield from self.item_or_next_requests(item)
 
     def parse_finish(self, response):
         item = response.meta['item']
-        finish_col = '-'.join(response.meta['finish_col'].lower().split())
-        item[finish_col] = json.loads(re.search(r'"assets":(\[.*?\])', response.text).group(1))[0]['url']
-        yield self.item_or_next_requests(item)
+        try:
+            item['finish-media'] = json.loads(re.search(r'"assets":(\[.*?\])', response.text).group(1))[0]['url']
+        except:
+            item['finish-media'] = response.url
+        yield from self.item_or_next_requests(item)
 
     def next_requests(self, response):
         requests = []
@@ -80,12 +85,14 @@ class BusterAndPunchSpider(CrawlSpider):
                                     callback=self.parse_product_video, dont_filter=True))
 
         finish_url_css = '.which-finish__media-wrapper ::attr(src)'
+        finish = response.css('[data-active-finish]::text').get()
 
         for finish_item in response.css('.which-finish__grid-item'):
-            requests.append(
-                Request(url=response.urljoin(finish_item.css(finish_url_css).get()), callback=self.parse_finish,
-                        dont_filter=True, meta={'finish_col': finish_item.css('h3::text').get()})
-            )
+            if finish_item.css('h3::text').get() == finish:
+                requests.append(
+                    Request(url=response.urljoin(finish_item.css(finish_url_css).get()), callback=self.parse_finish,
+                            dont_filter=True)
+                )
 
         return requests
 
@@ -93,9 +100,19 @@ class BusterAndPunchSpider(CrawlSpider):
         requests = item.pop('next_requests')
 
         if not requests:
-            return item
+            items = []
+            skus = item.pop('skus')
+            if not skus:
+                items.append(item)
+
+            for sku in skus:
+                raw_sku = item.copy()
+                raw_sku.update(sku)
+                items.append(raw_sku)
+
+            return items
 
         request = requests.pop()
         item['next_requests'] = requests
         request.meta['item'] = item
-        return request
+        return [request]
