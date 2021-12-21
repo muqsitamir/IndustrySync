@@ -1,7 +1,7 @@
 import json
 import re
 
-from scrapy import Request
+from scrapy import Request, Selector
 from scrapy.spiders import CrawlSpider, Rule
 from scrapy.linkextractors import LinkExtractor
 
@@ -24,6 +24,7 @@ class BusterAndPunchSpider(CrawlSpider):
     def parse_item(self, response):
         product_id = response.css('[property="product:retailer_item_id"]::attr(content)').get()
         item = {
+            'sku': product_id,
             'url': response.url,
             'title': response.css('.product_title::text').get(),
             'price': int(response.css('.summary bdi::text').get().replace(',', '')),
@@ -36,16 +37,19 @@ class BusterAndPunchSpider(CrawlSpider):
             'skus': [],
             'next_requests': self.next_requests(response)
         }
+        side_panel = response.css('script:contains("const side_panel")::text')
+        if side_panel:
+            side_panel_s = Selector(text=side_panel.re_first("const\sside_panel\s=\s\$\('(.*?)'\);"))
+            for sku_s in side_panel_s.css('.product_box'):
+                sku = dict()
+                sku['sku'] = f'{product_id}-{sku_s.css("::attr(data-value)").get()}'
+                sku['price'] = item['price'] + int(sku_s.css('::attr(data-price-per-unit)').get())
+                sku['images'] = item['images'] + f';{sku_s.css(" img::attr(src)").get()}'
+                item['skus'].append(sku)
 
-        for bulb_s in response.css('#tab-which-bulbs li'):
-            sku = dict()
-            sku['sku'] = f'{product_id}_{bulb_s.css("::attr(data-clerk-product-id)").get()}'
-            sku['price'] = item['price'] + int(bulb_s.css('bdi::text').get())
-            sku['images'] = item['images'] + f';{bulb_s.css(" img::attr(src)").get()}'
-            item['skus'].append(sku)
-
+        finish_css = '.summary-add-to-cart-form .iconic-was-swatches [data-finish]::attr(href)'
         yield from [Request(url=url, callback=self.parse_item)
-                    for url in response.css('.iconic-was-swatches [data-finish]::attr(href)').extract()]
+                    for url in response.css(finish_css).extract()]
 
         yield from self.item_or_next_requests(item)
 
