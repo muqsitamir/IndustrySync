@@ -33,7 +33,7 @@ class LightologySpider(CrawlSpider):
             'product-details-attr': response.css('.dyn_attribute_name::text').get(),
             'product-details-color': response.css('.dyn_color_name::text').get(),
             'product-details-dimmer': response.css('.dyn_dimmer_name > span + span ::text').get(),
-            'product-details-label': response.css('.labels-text::text').get().strip(),
+            'product-details-label': response.css('.labels-text::text').get().strip() if response.css('.labels-text::text') else None,
             'product-details-lamp-source': response.css('.dyn_lamp_source_name::text').get(),
             'product-details-bulb': response.css('.bulb_string::text').get(),
             'price': response.css(".dyn_price span+span::text").get()
