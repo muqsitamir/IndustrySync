@@ -6,17 +6,17 @@ from scrapy.linkextractors import LinkExtractor
 
 class CasablancaCrawlSpider(CrawlSpider):
     name = 'casablanca_crawl'
-    allowed_domains = ['hunterfan.com', 's7d5.scene7.com', 'edge.curalate.com']
+    allowed_domains = ['hunterfan.com', 's7d5.scene7.com', 'edge.curalate.com', 'res.cloudinary.com']
     start_urls = [
         'https://www.hunterfan.com/',
         'https://www.hunterfan.com/pages/casablanca'
     ]
-
-    imageset_url_t = 'https://s7d5.scene7.com/is/image/{}?req=set,json,UTF-8'
-    image_url_t = 'https://s7d5.scene7.com/is/image/{}?fit=constrain,1&wid={}&hei={}&fmt=jpg'
-    video_url_t = 'https://s7d5.scene7.com/is/content/{}'
+    handle_httpstatus_list = [404]
+    imageset_url_t = 'https://res.cloudinary.com/casablancahunter/image/list/{}.json'
+    videoset_url_t = 'https://res.cloudinary.com/casablancahunter/video/list/{}.json'
+    image_url_t = 'https://res.cloudinary.com/casablancahunter/image/upload/b_rgb:FFFFFF/{}'
+    video_url_t = 'https://res.cloudinary.com/casablancahunter/video/upload/b_rgb:FFFFFF/{}'
     large_img_url = 'https://edge.curalate.com/v1/media/RBAUVdgCASbpxxGt?filter=((productId%3A%27{}%27))'
-
 
     listing_css = ['.site-nav.lvl-2:contains(" All")', '.site-nav.lvl-1:contains(" all")', '.Grid', '.infinitpagin']
     rules = (
@@ -29,11 +29,11 @@ class CasablancaCrawlSpider(CrawlSpider):
     }
 
     def parse_item(self, response):
+        main_video = response.css('script:contains("myGallery")::text').re_first('publicId:\s"(.*?)"')
         item = {
             'title': response.css('h1.product-single__title.desktop_only::text').get(),
             'price': response.css('#ProductPrice-product-template ::text').get(),
             'finish': '',
-            'images': '',
             'sku': '',
             'aux-image': '',
             'url': response.url,
@@ -48,30 +48,22 @@ class CasablancaCrawlSpider(CrawlSpider):
             sku = item.copy()
             sku['sku'] = sku_s.css('::attr(data-varsku)').get()
             sku['finish'] = sku_s.css('::attr(data-value)').get()
+            sku['images'] = [self.video_url_t.format(main_video)] if main_video else []
 
-            yield Request(self.imageset_url_t.format(sku_s.css('::attr(data-medialink)').get()),
-                          callback=self.parse_images, meta={'item': sku})
+            yield Request(self.imageset_url_t.format(sku['sku']), callback=self.parse_images, meta={'item': sku})
 
     def parse_images(self, response):
         item = response.meta['item']
-        raw_images = response.text.replace('/*jsonp*/s7jsonResponse(', '').replace(',"");', '')
-        content = []
-        raw_images = json.loads(raw_images)['set']['item']
+        item['images'] += [self.image_url_t.format(img["public_id"])
+                           for img in json.loads(response.text)['resources']]
+        yield Request(self.videoset_url_t.format(item['sku']), callback=self.parse_videos, meta={'item': item})
 
-        if isinstance(raw_images, dict):
-            item['images'] = self.image_url_t.format(raw_images['i']['n'], raw_images['dx'], raw_images['dy'])
-        else:
-            for raw_content in raw_images:
-                if 'type' not in raw_content:
-                    content.append(self.image_url_t.format(raw_content['i']['n'], raw_content['dx'], raw_content['dy']))
-                elif raw_content['type'] == 'video':
-                    content.append(self.video_url_t.format(raw_content['v']['path']))
-                elif raw_content['type'] == 'video_set':
-                    res = [int(v['v']['dx'])*int(v['v']['dy']) for v in raw_content['set']['item']]
-                    max_res_index = res.index(max(res))
-                    content.append(self.video_url_t.format(raw_content['set']['item'][max_res_index]['v']['path']))
-
-            item['images'] = ';'.join(content)
+    def parse_videos(self, response):
+        item = response.meta['item']
+        if response.status == 200:
+            item['images'] += [self.video_url_t.format(img["public_id"])
+                               for img in json.loads(response.text)['resources']]
+        item['images'] = ';'.join(item['images'])
         yield Request(self.large_img_url.format(item['sku']), callback=self.parse_result, meta={'item': item})
 
     def parse_result(self, response):
