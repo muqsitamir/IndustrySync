@@ -21,7 +21,7 @@ class WACLightingSpider(CrawlSpider):
     )
 
     def parse_item(self, response):
-        spec_sheet = response.css('[data-specsheet3]::attr(href)').get()
+        spec_sheet = response.css('a[href*="storage"]:contains("SPEC SHEET")::attr(href)').get()
         instructions = response.css('a:contains("INSTRUCTIONS")::attr(href)').get()
         ies_files = response.css('a:contains("IES FILES")::attr(href)').get()
         dimming_report = response.css('a:contains("DIMMING REPORT")::attr(href)').get()
