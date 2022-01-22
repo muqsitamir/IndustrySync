@@ -46,7 +46,7 @@ class Schonbek1870CustomerSpider(Schonbek1870Spider):
 
     def parse_items(self, response):
         item = {
-            'customer-name': response.css('[name=custmaster] tr:nth-child(2) ::text').get(),
+            'customer-name': response.css('.subheader1 ::text').get(),
             'excel-price-list': response.urljoin(response.css('a:contains("Excel Price List") ::attr(href)').get()),
             'excel-product-information': response.urljoin(response.css('a:contains("Excel Product Information") ::attr(href)').get()),
         }
