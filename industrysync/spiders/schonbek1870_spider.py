@@ -1,4 +1,4 @@
-from scrapy import FormRequest
+from scrapy import FormRequest, Request
 from scrapy.spiders import CrawlSpider
 
 
@@ -33,3 +33,21 @@ class Schonbek1870Spider(CrawlSpider):
             product = {k: v for k, v in zip(keys, values)}
             product['Image'] = response.urljoin(product['Image'])
             yield product
+
+
+class Schonbek1870CustomerSpider(Schonbek1870Spider):
+    name = 'schonbek_customer_crawl'
+    customers = ['18123100', 'BY171623']
+    customer_url = 'https://ws.schonbek.com/ws/ext/z_custmaster.html?customer={}&company=SWM'
+
+    def parse_start_url(self, response, **kwargs):
+        for customer in self.customers:
+            yield Request(url=self.customer_url.format(customer), callback=self.parse_items)
+
+    def parse_items(self, response):
+        item = {
+            'customer-name': response.css('[name=custmaster] tr:nth-child(2) ::text').get(),
+            'excel-price-list': response.urljoin(response.css('a:contains("Excel Price List") ::attr(href)').get()),
+            'excel-product-information': response.urljoin(response.css('a:contains("Excel Product Information") ::attr(href)').get()),
+        }
+        return item
