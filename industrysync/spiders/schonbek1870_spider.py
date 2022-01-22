@@ -36,7 +36,7 @@ class Schonbek1870Spider(CrawlSpider):
 
 
 class Schonbek1870CustomerSpider(Schonbek1870Spider):
-    name = 'schonbek_customer_crawl'
+    name = 'schonbek1870_customer_crawl'
     customers = ['18123100', 'BY171623']
     customer_url = 'https://ws.schonbek.com/ws/ext/z_custmaster.html?customer={}&company=SWM'
 
