@@ -15,8 +15,10 @@ class KalcoSpider(CrawlSpider):
     username = 'industrysync'
     password = 'weSync2020!'
 
+    listing_css = ['.datatable tbody [data-label="ID"]', '.pagination']
+
     rules = (
-         Rule(LinkExtractor(restrict_css='.datatable tbody [data-label="ID"]')),
+         Rule(LinkExtractor(restrict_css=listing_css)),
          Rule(LinkExtractor(restrict_css='.export-products-purchased', attrs=("data-url",))),
     )
 
