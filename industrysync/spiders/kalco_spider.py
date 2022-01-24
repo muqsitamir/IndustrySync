@@ -5,7 +5,7 @@ from scrapy.spiders import CrawlSpider, Rule
 
 
 class KalcoSpider(CrawlSpider):
-    name = 'kalco_spider'
+    name = 'kalco_crawl'
     allowed_domains = ['kalco.com']
     start_urls = ['https://portal.kalco.com/kal/e/1/login']
     custom_settings = {

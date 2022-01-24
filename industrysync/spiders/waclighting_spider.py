@@ -39,10 +39,11 @@ class WACLightingSpider(CrawlSpider):
             'ies-files': response.urljoin(ies_files) if ies_files else None,
             'dimming-report': response.urljoin(dimming_report) if dimming_report else None,
             'gallery': ';'.join([response.urljoin(g) for g in response.css('.gallery a::attr(href)').extract()]),
-            'line-drawings': ';'.join(
-                [response.urljoin(g) for g in response.css('.line-drawings ::attr(src)').extract()]),
+            'line-drawings': ';'.join([response.urljoin(g) for g in response.css('.line-drawings ::attr(src)').extract()]),
+            'features': {i: text for i, text in enumerate(response.css('#default-wac-feature-list li::text').getall())}
         }
         for sku_s in response.css('.specifications-table tbody tr'):
             sku = item.copy()
             sku['sku'] = sku_s.css('::attr(data-order-number)').get()
             yield sku
+
