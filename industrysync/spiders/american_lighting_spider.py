@@ -43,6 +43,7 @@ class AmericanLightingSpider(CrawlSpider):
         item = {
             "title": product_name,
             "sku": product_name.split()[-1],
+            "url": response.url,
             "download_url": response.urljoin(response.css("#tearsheetVueApp>a")[1].css("::attr(href)").get()),
             "text": response.css("#details .item-description::text").get(),
             "image_urls": ';'.join([image_url.split('?')[0] for image_url in response.css("#alt-slideshow img::attr(src)").getall()]),
