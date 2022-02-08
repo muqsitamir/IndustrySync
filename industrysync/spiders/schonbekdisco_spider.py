@@ -10,7 +10,7 @@ class SchonbekDiscoSpider(CrawlSpider):
     name = 'schonbek_disco_crawl'
     allowed_domains = ['schonbek.com']
     start_urls = ["https://ws.schonbek.com/ws/ext/login.html"]
-    
+
     custom_settings = {
         'CRAWLERA_ENABLED': False
     }
@@ -31,7 +31,7 @@ class SchonbekDiscoSpider(CrawlSpider):
     def parse_fixtures_form(self, response):
         url = "https://ws.schonbek.com/ws/ext/z_retired-fixtures-list.html"
         date_to = datetime.today()
-        date_from = date_to.replace(year=date_to.year-10)
+        date_from = date_to.replace(year=date_to.year-2)
         payload = 'electrics=100&electrics=110&electrics=120-240&electrics=127V&electrics' \
                   '=12V&electrics=220&electrics=24V&electrics=CANDLE&electrics=LOW+VOLT&' \
                   f'electrics=NONE&datefrom={quote_plus(date_from.strftime("%d/%m/%y"))}&d' \
@@ -47,8 +47,8 @@ class SchonbekDiscoSpider(CrawlSpider):
             data = row.css("td")
             item = {
                 "product_line": data[0].css('::text').get(),
-                "core": data[1].css('::text').get(),
-                "fixture": data[2].css('::text').get(),
+                "core": data[1].css('::text').get().replace('\'', ''),
+                "fixture": data[2].css('::text').get().replace('\'', ''),
                 "description": data[3].css('::text').get(),
                 "voltage/electrics": data[4].css('::text').get(),
                 "discontinued date": data[5].css('::text').get(),
