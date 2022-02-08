@@ -31,7 +31,7 @@ class SchonbekDiscoSpider(CrawlSpider):
     def parse_fixtures_form(self, response):
         url = "https://ws.schonbek.com/ws/ext/z_retired-fixtures-list.html"
         date_to = datetime.today()
-        date_from = date_to.replace(year=date_to.year-2)
+        date_from = date_to.replace(year=date_to.year-10)
         payload = 'electrics=100&electrics=110&electrics=120-240&electrics=127V&electrics' \
                   '=12V&electrics=220&electrics=24V&electrics=CANDLE&electrics=LOW+VOLT&' \
                   f'electrics=NONE&datefrom={quote_plus(date_from.strftime("%d/%m/%y"))}&d' \
